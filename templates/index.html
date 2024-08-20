@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Champions Screener</title>
+  <!-- Bootstrap CSS for styling -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="icon" href="static/images/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="static/css/comp.css?v=1.0.2">
+  <!-- Chart.js for charting -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="full-height-container">
+    <h2>Champions Screener</h2>
+    <div class="table-wrapper">
+      <h3>Intraday</h3>
+      <div id="intraday-table"></div>
+    </div>
+    <div class="table-wrapper">
+      <h3>Swing</h3>
+      <div id="swing-table"></div>
+    </div>
+    <div class="table-wrapper">
+      <h3>Positional</h3>
+      <div id="positional-table"></div>
+    </div>
+    <div class="table-wrapper">
+      <h3>Reversal</h3>
+      <div id="reversal-table"></div>
+    </div>
+    <div class="table-wrapper">
+      <h3>Overbrought</h3>
+      <div id="overbrought-table"></div>
+    </div>
+    <div class="table-wrapper">
+      <h3>New Conditions</h3>
+      <div id="condition6-table"></div>
+    </div>
+  </div>
+
+  <!-- Popup HTML -->
+  <div class="popup-overlay" id="popup-overlay">
+    <div class="popup">
+      <div class="popup-header">
+        <span class="popup-close" onclick="closePopup()">&times;</span>
+      </div>
+      <div id="popup-content">Popup Content</div>
+    </div>
+  </div>
+
+  <!-- JavaScript for table generation -->
+  <script src="static/js/test2.js?v=1.0.0.7"></script>
+</body>
+</html>

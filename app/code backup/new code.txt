@@ -1,0 +1,168 @@
+import os
+import requests
+from fastapi import Response, status, HTTPException, Depends, APIRouter
+from bs4 import BeautifulSoup as bs
+import pandas as pd
+import pytz, os, datetime, time
+import asyncio
+from pprint import pprint
+from sqlalchemy.orm import Session
+from ..database import get_db
+from .. import models
+from sqlalchemy import text, column
+from sqlalchemy.sql import select
+from .sorted_data import frequency
+from .comp import compare_csv_files
+from hashlib import sha256
+import pickle
+from datetime import datetime, timedelta
+
+URL = 'https://chartink.com/screener/process'
+
+def cached(app_name, timeout=3600):
+    def _cached(function):
+        def wrapper(*args, **kw):
+            # Create a directory for caching
+            home_dir = os.path.expanduser("~")
+            cache_dir = os.path.join(home_dir, '.cache', app_name)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+
+            # Generate a unique key from the function name and arguments
+            key = function.__name__ + str(args) + str(kw)
+            key_hash = sha256(key.encode()).hexdigest()
+            path = os.path.join(cache_dir, key_hash + ".pkl")
+
+            now = datetime.now()
+            if os.path.isfile(path):
+                with open(path, 'rb') as fp:
+                    cached_data = pickle.load(fp)
+                    if now - cached_data['timestamp'] < timedelta(seconds=timeout):
+                        return cached_data['data']
+
+            # Fetch new data and cache it
+            data = function(*args, **kw)
+            with open(path, 'wb') as fp:
+                pickle.dump({'data': data, 'timestamp': now}, fp)
+            return data
+        return wrapper
+    return _cached
+
+@cached("nse_cache", timeout=3600)  # Caching for 1 hour
+def scandata(condition, conditionName):
+    try:
+        db = next(get_db())
+        symbol_df = pd.read_sql(db.query(models.Symbol).statement, db.bind)
+        directory = 'mid'
+        with requests.session() as s:
+            rawData = s.get(URL)
+            soup = bs(rawData.content, "lxml")
+            meta = soup.find('meta', {"name": "csrf-token"})['content']
+            header = {"X-Csrf-Token": meta}
+            responseData_scan1 = s.post(url=URL, headers=header, data=condition, timeout=10000)
+            if responseData_scan1.content:
+                data = responseData_scan1.json()
+                stock = data['data']
+                stock_list = pd.DataFrame(stock)
+                print(f"-------------------{conditionName}----------------------------")
+                print(stock_list)
+                if stock_list.empty:
+                    time.sleep(2)
+                    df_empty = pd.DataFrame(columns=['nsecode', 'per_chg', 'close', 'date', 'igroup_name'])
+                    if not os.path.exists(directory):
+                        os.makedirs(directory)
+                    print("no data")
+                    df_empty.to_csv(f'mid/{conditionName}.csv', index=False)
+                    return pd.DataFrame(columns=['nsecode', 'name', 'bsecode', 'per_chg', 'close', 'volume', 'date', 'time', 'igroup_name'])
+
+                today = str(datetime.datetime.now(pytz.timezone('Asia/Kolkata')).date())
+                stock_list['date'] = today
+                now = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))  
+                current_time = now.strftime('%H:%M:%S')
+                stock_list['time'] = str(current_time)
+                stock_list['nsecode'] = stock_list['nsecode'].fillna('NA')
+                stock_list['bsecode'] = stock_list['bsecode'].fillna(0)
+                datafile = pd.merge(stock_list, symbol_df[["nsecode", 'igroup_name']], on="nsecode", how='left')
+                datafile['igroup_name'] = datafile['igroup_name'].fillna('Others')
+              
+                new_data = datafile.drop(['sr', 'name', 'bsecode', 'volume', 'time'], axis=1)
+                
+                file_name = f'mid/{conditionName}.csv'    
+                if os.path.exists(file_name):
+                    old_data = pd.read_csv(f'mid/{conditionName}.csv')
+                else:
+                    old_data = pd.DataFrame(columns=['nsecode', 'name', 'bsecode', 'per_chg', 'close', 'volume', 'date', 'time', 'igroup_name'])
+                    print(old_data)
+                old_data = old_data.drop(columns=['date'])
+                new_data_with_date = new_data.drop(columns=['date'])
+                comp_result = compare_csv_files(old_data, new_data_with_date)
+                print(f"------- Comparison result for {conditionName} --> {comp_result}<--888888888888")
+                
+                if comp_result:
+                    return pd.DataFrame(columns=['nsecode', 'name', 'bsecode', 'per_chg', 'close', 'volume', 'date', 'time', 'igroup_name'])
+                else:
+                    if not os.path.exists(directory):
+                        os.makedirs(directory)
+                    print(f"saving data to mid/{conditionName}.csv")
+                    new_data.to_csv(f'mid/{conditionName}.csv', index=False)
+                    return datafile
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return pd.DataFrame(columns=['nsecode', 'name', 'bsecode', 'per_chg', 'close', 'volume', 'date', 'time', 'igroup_name'])
+
+def chartinkLogicBankend(condition, conditionName, db_name):
+    try:
+        today = str(datetime.datetime.now(pytz.timezone('Asia/Kolkata')).date())
+        db = next(get_db())
+
+        model_mapping = {
+            ("IntradayData", "Champions Intraday"): models.IntradayData,
+            ("OverBroughtData", "Champions Over Brought"): models.OverBroughtData,
+            ("PositionalData", "Champions Positional"): models.PositionalData,
+            ("ReversalData", "Champions Reversal Stocks"): models.ReversalData,
+            ("SwingData", "Champions Swing"): models.SwingData
+        }
+
+        model_class = model_mapping.get((db_name, conditionName))
+        
+        if not model_class:
+            print(f"No model mapping found for {db_name} and {conditionName}")
+            return
+
+        scandataFunc_df = scandata(condition, conditionName)
+
+        if scandataFunc_df.empty:
+            print(f"{db_name} {conditionName} data not found in scan")
+            return
+
+        selected_columns = ['nsecode', 'name', 'bsecode', 'per_chg', 'close', 'volume', 'date', 'time', 'igroup_name']
+        newScandataFunc = scandataFunc_df[selected_columns]
+
+        existing_data = pd.read_sql(db.query(model_class).statement, db.bind)
+
+        if not existing_data.empty:
+            frequency(existing_data, conditionName)
+            new_data = newScandataFunc[~newScandataFunc['nsecode'].isin(existing_data.loc[existing_data['date'] == today, 'nsecode'])]
+
+            if new_data.empty:
+                return
+            else:
+                print(f"New data found for {conditionName}, adding to database {db_name}...")
+                new_entries = new_data.to_dict(orient='records')
+                try:
+                    db.bulk_insert_mappings(model_class, new_entries)
+                    db.commit()
+                except Exception as e:
+                    print(f"{conditionName} ---> error {e}")
+        else:
+            print(f"{db_name} {conditionName} data not found in database")
+            print(f"Entering the {conditionName} to database {db_name}...")
+            data_to_insert = newScandataFunc.to_dict(orient='records')
+            try:
+                db.bulk_insert_mappings(model_class, data_to_insert)
+                db.commit()
+            except Exception as e:
+                print(f"{conditionName} ---> error {e}")
+
+    except Exception as e:
+        print(f"Error in chartinkLogicBankend: {e}")
