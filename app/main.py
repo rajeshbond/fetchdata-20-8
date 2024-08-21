@@ -46,8 +46,8 @@ def add_cache_control_headers(response: Response):
 
 @app.get("/",response_class=HTMLResponse)
 def root(request: Request):
-    response = templates.TemplateResponse("index.html",{"request": request})
-    # response = templates.TemplateResponse("notfound.html",{"request": request})
+    # response = templates.TemplateResponse("index.html",{"request": request})
+    response = templates.TemplateResponse("notfound.html",{"request": request})
     response = add_cache_control_headers(response)
     return response
 
