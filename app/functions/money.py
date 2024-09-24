@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 
 # Define a decorator for caching
-def cached(app_name, timeout=3600):
+def cached(app_name, timeout=10):
     def _cached(function):
         def wrapper(*args, **kw):
             # Create a directory for caching
@@ -47,12 +47,12 @@ user_agents = [
     'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
 ]
 
-@cached("nse_cache", timeout=3600)  # 1 hour timeout
+@cached("nse_cache", timeout=10)  # 1 hour timeout
 def fetch_control(url):
     # Rotate User-Agent for each request
     headers = {
         'User-Agent': random.choice(user_agents),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        # 'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
         'Accept-Language': 'en-US,en;q=0.9',
@@ -111,7 +111,7 @@ def global_data():
     url = 'https://priceapi.moneycontrol.com/technicalCompanyData/globalMarket/getGlobalIndicesListingData?view=overview&deviceType=W'
 
     data = fetch_control(url)
-    print(data)
+    # print(data)
     if data is None:
         print("No data to process.")
         return
@@ -134,8 +134,12 @@ def global_data():
     required_columns = ["name", "price", "percent_change", "last_updated", "flag_url", "state"]
     df_filtered = df[required_columns]
     global_list = df_filtered.to_dict(orient='records')
-    print(global_list)
+    # print(global_list)
     return global_list
 
 # global_data()
+
+
+
+
 

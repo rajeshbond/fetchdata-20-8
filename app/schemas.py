@@ -9,29 +9,7 @@ from pydantic.types import conlist
 
 
 # this is the old code start here 
-class DataFetch(BaseModel):
-    conditionName: str
 
-class DataFetchout(BaseModel):
-    nsecode : str
-    per_chg : float
-    close: float
-    date : str
-    sector:str
-    count : int
-    frequency : int
-    Piotrski : int
-    
-
-class frequencyFetchIn(BaseModel):
-    tableName: str
-    nsecode: str
-    count: int
-class frequencyFetchOut(BaseModel):
-    nsecode : str
-    close: float   
-    date : str
-    # time : str
 
 #  The hash end here to be deleted later
 
@@ -67,6 +45,13 @@ class GlobalData(BaseModel):
     last_updated: int
     flag_url: str
     state: str
+class indexinput(BaseModel):
+    indexName: str
+
+class allIndex(BaseModel):
+    index : str
+    last : float
+    percentChange : float
 
 
     

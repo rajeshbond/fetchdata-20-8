@@ -5,9 +5,10 @@ import random
 import pandas as pd
 from datetime import datetime, timedelta
 from hashlib import sha256
+directory = 'edgeData'
 
 # Define a decorator for caching
-def cached(app_name, timeout=3600):
+def cached(app_name, timeout=10):
     def _cached(function):
         def wrapper(*args, **kw):
             # Create a directory for caching
@@ -47,21 +48,20 @@ user_agents = [
     'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
 ]
 
-# Function to fetch data from NSE with caching
-@cached("nse_cache", timeout=3600)  # 1 hour timeout
-def fetch_nse_data(url):
+@cached("nse_cache", timeout=10)  # 1 hour timeout
+def fetch_control(url):
     # Rotate User-Agent for each request
     headers = {
         'User-Agent': random.choice(user_agents),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        # 'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://www.nseindia.com/'
+        'Referer': 'https://web.stockedge.com/'
     }
 
     # Initial request to fetch cookies (replace with the actual URL that sets the cookies)
-    initial_url = "https://www.nseindia.com/"
+    initial_url = "https://web.stockedge.com/"
     session.get(initial_url, headers=headers)
     
     response = session.get(url, headers=headers)
@@ -74,4 +74,36 @@ def fetch_nse_data(url):
     else:
         print(f"Failed to fetch data. Status code: {response.status_code}")
         return None
+
+
+def new_top_news():
+    url = "https://api.stockedge.com/Api/MarketHomeDashboardApi/GetTopNewsItems?lang=en"
+    data = fetch_control(url)
+    print(data)
+    if data:
+        extracted_data = []
+        for item in data:
+            for security in item['NewsitemSecurities']:
+                extracted_data.append({
+                'Date': item['Date'],
+                'Description': item['Description'],
+                'SecurityName': security['SecurityName']
+                })
+        df = pd.DataFrame(extracted_data)
+        if not os.path.exists(directory):
+                os.makedirs(directory)
+        df['Date'] = pd.to_datetime(df['Date']).apply(lambda x: x.strftime('%d-%m-%Y'))    
+        # Save data to CSV
+        csv_file = os.path.join(directory, 'new_top_news.csv')
+        df.to_csv(csv_file, index=False, encoding='utf-8')
+        print(f"Data saved successfully to {csv_file}")
+        return data
+    else:
+        print("Failed to retrieve data.")
+
+# new_top_news()
+
+
+
+
 

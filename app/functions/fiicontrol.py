@@ -1,12 +1,58 @@
+import os
 import requests
-from bs4 import BeautifulSoup
+import pickle
+import random
 import pandas as pd
+from datetime import datetime, timedelta
+from hashlib import sha256
+from bs4 import BeautifulSoup
 
+# Define a decorator for caching
+def cached(app_name, timeout=10):
+    def _cached(function):
+        def wrapper(*args, **kw):
+            # Create a directory for caching
+            home_dir = os.path.expanduser("~")
+            cache_dir = os.path.join(home_dir, '.cache', app_name)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+
+            # Generate a unique key from the function name and arguments
+            key = function.__name__ + str(args) + str(kw)
+            key_hash = sha256(key.encode()).hexdigest()
+            path = os.path.join(cache_dir, key_hash + ".pkl")
+
+            now = datetime.now()
+            if os.path.isfile(path):
+                with open(path, 'rb') as fp:
+                    cached_data = pickle.load(fp)
+                    if now - cached_data['timestamp'] < timedelta(seconds=timeout):
+                        return cached_data['data']
+
+            # Fetch new data and cache it
+            data = function(*args, **kw)
+            with open(path, 'wb') as fp:
+                pickle.dump({'data': data, 'timestamp': now}, fp)
+            return data
+        return wrapper
+    return _cached
+
+# List of user agents for rotation
+user_agents = [
+    'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.5790.102 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 14_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
+]
+
+# Apply caching to fetch_fii_dii_data with a 1-hour timeout
+@cached("fii_dii_cache", timeout=3600)  # 1 hour timeout
 def fetch_fii_dii_data():
     url = "https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php"
 
+    # Rotate User-Agent for each request
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": random.choice(user_agents),  # Random User-Agent from the list
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
         "Connection": "keep-alive"
@@ -38,16 +84,6 @@ def fetch_fii_dii_data():
 
     return data
 
-def format_data(data):
-    
-    formatted = "Category,Date,Buy Value,Sell Value,Net Value\n"
-    for row in data:
-        formatted += f"{row['Date']},{row['FII Buy Value']},{row['FII Sell Value']},{row['FII Net Value']},{row['DII Buy Value']},{row['DII Sell Value']},{row['DII Net Value']}\n"
-    return formatted
-
-
-
-
 def data_cleaning(data):
     df = pd.DataFrame(data)
     
@@ -70,18 +106,8 @@ def data_cleaning(data):
         print(f"Date conversion error: {e}")
         return []
 
-    # Check if any conversion failed
-    if filtered_df['Date'].isna().all():
-        print("All date conversions failed.")
-        return []
-
     # Drop rows where conversion failed (resulting in NaT)
     filtered_df = filtered_df.dropna(subset=['Date'])
-
-    # Check if there are any remaining dates after dropping NaT
-    if filtered_df.empty:
-        print("No valid dates remaining after dropping NaT.")
-        return []
 
     # Filter out weekends
     try:
@@ -103,61 +129,14 @@ def data_cleaning(data):
         print(f"Error formatting dates: {e}")
         return []
 
-    # Convert the resulting DataFrame to a list of dictionaries
-    latest_five_business_days_data_as_list = latest_five_business_days_df.to_dict(orient='records')
-
-    # Print the cleaned data
-    # print("\nLatest Five Business Days Data in Ascending Order as List of Dictionaries:")
-    print(latest_five_business_days_data_as_list)
-    
-    return latest_five_business_days_data_as_list
-
-
-
-
-# def data_cleaning(data):
-#   df = pd.DataFrame(data)
-#   df['Date'] = df['Date'].str.strip().replace('\n', '', regex=True)
-
-#   # Define the criteria to exclude rows where 'Date' is 'Month till date' or '24-Jul-2024'
-#   criteria = (df['Date'] != 'Month till date') & (df['Date'] != '24-Jul-2024')
-
-#   # Apply the criteria to filter the DataFrame
-#   filtered_df = df[criteria]
-
-#   # Use regex to extract the relevant date
-#   filtered_df['Date'] = filtered_df['Date'].str.extract(r'(\d{2}-\w{3}-\d{4})')
-
-#   # Convert 'Date' column to datetime format
-#   filtered_df['Date'] = pd.to_datetime(filtered_df['Date'], format='%d-%b-%Y')
-
-#   # Filter out weekends
-#   filtered_df = filtered_df[~filtered_df['Date'].dt.dayofweek.isin([5, 6])]
-
-#   # Sort the DataFrame by 'Date' in ascending order
-#   filtered_df = filtered_df.sort_values(by='Date', ascending=True)
-
-#   # Select the most recent 5 business days (which are now the earliest 5 after sorting)
-#   latest_five_business_days_df = filtered_df.tail(5)
-
-#   # Format 'Date' to dd-mm-yyyy
-#   latest_five_business_days_df['Date'] = latest_five_business_days_df['Date'].dt.strftime('%d-%m-%Y')
-
-#   # Convert the resulting DataFrame to a list of dictionaries
-#   latest_five_business_days_data_as_list = latest_five_business_days_df.to_dict(orient='records')
-
-#   # Print the cleaned data
-#   print("\nLatest Five Business Days Data in Ascending Order as List of Dictionaries:")
-#   # print(latest_five_business_days_data_as_list)
-#   return latest_five_business_days_data_as_list
-
-    
+    return latest_five_business_days_df.to_dict(orient='records')
 
 def fetch_fii_dii_data_and_format():
     data = fetch_fii_dii_data()
     final_data = data_cleaning(data)
-    # print("---------------------------------------------------------")
+    print("---------------------------------------------------------")
     # print(final_data)
     return final_data
 
+# Call the function
 # fetch_fii_dii_data_and_format()
