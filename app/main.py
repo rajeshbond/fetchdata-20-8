@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Request, Response
 from . import models
 from .database import engine
-from .routers import symbols, stock_price,screener,fetchdata,live
+from .routers import live,input_start
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -29,11 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # # #####################################
-app.include_router(symbols.router)
-app.include_router(stock_price.router)
-app.include_router(screener.router)
-app.include_router(fetchdata.router)
+
 app.include_router(live.router)
+app.include_router(input_start.router)
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
