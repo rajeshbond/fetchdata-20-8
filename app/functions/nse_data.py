@@ -28,7 +28,7 @@ def getIndex(index_name):
         nifty50_df.to_csv(f'{directory}/{index_name}.csv', index=False)
     else:
         nifty50_df.to_csv(f'{directory}/{index_name}.csv', index=False)
-        # print(nifty50_df.to_dict('records'))    
+        print(nifty50_df.to_dict('records'))    
   except Exception as e:
     raise HTTPException(status_code=500, detail=str(e))
 
