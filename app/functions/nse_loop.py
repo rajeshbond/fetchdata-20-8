@@ -1,9 +1,9 @@
 import logging
-from .nse_data import getIndex, indexfetch, indexfetch_heat, market_status
+import time
+from fastapi import HTTPException
+from .new_nse import market_status_1, fetch_nifty_data_index, indexes_all
 from .nse_func import board_meetings
 from .stockedge import new_top_news
-from fastapi import HTTPException
-import time
 
 # Configure logging to write errors to a text file
 logging.basicConfig(
@@ -12,10 +12,10 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",  # Format for log entries
 )
 
-def safe_execute(func, *args):
+def safe_execute(func, *args, **kwargs):
     """Helper to execute a function with error logging."""
     try:
-        func(*args)
+        return func(*args, **kwargs)
     except Exception as e:
         error_message = f"Error in {func.__name__}: {str(e)}"
         logging.error(error_message)  # Log the error
@@ -24,46 +24,60 @@ def safe_execute(func, *args):
 def start_loop():
     """Fetch market indices repeatedly when the market is open."""
     count = 0
-    flag = True  
-    # Check if the market is open
-    while flag:
-        market = market_status()
-        if market.lower() in ["closed", "close"]:
-            print("Market is closed. Exiting the program.")
-            flag = False
-            break
+
+    while True:
+        market = safe_execute(market_status_1)
+        time.sleep(10)  # Wait for 10 seconds before checking status again
+
+        # if market.lower() in ["closed", "close"]:
+        #     print("Market is closed. Exiting the program.")
+        #     break
 
         print(f"----Count: {count + 1} {market}----")
-        # Fetch indices data
-        safe_execute(getIndex, "NIFTY BANK")
-        safe_execute(getIndex, "NIFTY 50")
-        safe_execute(indexfetch)
-        safe_execute(indexfetch_heat)
+        
+        # Safely fetch NIFTY data and all indices
+        safe_execute(fetch_nifty_data_index, 
+                     "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20BANK", 
+                     "NIFTY BANK")
+        safe_execute(fetch_nifty_data_index, 
+                     "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050", 
+                     "NIFTY 50")
+        safe_execute(indexes_all)
+
+        if market.lower() in ["closed", "close"]:
+            print("Market is closed. Exiting the program.")
+            break
 
         count += 1
-        time.sleep(20)  # Fetch data every 20 seconds
+        time.sleep(20)  # Wait 20 seconds before next iteration
+
+    print("Exited the loop gracefully.")
 
 def start_loop_news():
     """Fetch market news and board meetings repeatedly when the market is open."""
     count = 0
-    flag = True  
-    while flag:
-        market = market_status()
+
+    while True:
+        market = safe_execute(market_status_1)
+        time.sleep(10)  # Wait for 10 seconds before checking status
+
         if market.lower() in ["closed", "close"]:
             print("Market is closed. Exiting the news fetch loop.")
-            flag = False
             break
 
         print(f"----Count: {count + 1} {market}----")
-        # Fetch news and meetings data
+        
+        # Safely fetch news and board meetings
         safe_execute(new_top_news)
         safe_execute(board_meetings)
 
         count += 1
-        time.sleep(3600)  # Fetch news every 1 hour  seconds
+        time.sleep(3600)  # Wait for 1 hour before fetching again
+        if market.lower() in ["closed", "close"]:
+            print("Market is closed. Exiting the news fetch loop.")
+            break
 
-
-
+    print("Exited the news fetch loop gracefully.")
 
 
 

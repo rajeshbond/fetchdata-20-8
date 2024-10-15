@@ -9,7 +9,9 @@ directory = 'heatmap'
 
 def market_status():
   status = n.market_status()
+  print(status)
   data =status['marketState'][0]['marketStatus']
+  print(data)
   return data
 
 
@@ -174,3 +176,4 @@ def indexfetch_heat():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+# market_status()

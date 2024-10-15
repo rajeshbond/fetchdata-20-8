@@ -1,7 +1,9 @@
 from .nse_rajesh import fetch_nse_data
 import pandas as pd, os
-from datetime import datetime
+from datetime import datetime 
+import time
 directory = 'FetchedData'
+
 def fii():
     api_url = "https://www.nseindia.com/api/fiidiiTradeReact"
     data = fetch_nse_data(api_url)
@@ -16,8 +18,11 @@ def fii():
 
 def corporate_analytics():
     api_url = "https://www.nseindia.com/api/home-corporate-announcements?index=homepage"
+    # api_url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
     data = fetch_nse_data(api_url)
+    # print(data)
     data = data.get('data')
+    # print(data)
     if data:
         df = pd.DataFrame(data)
         list = df.to_dict('records')
@@ -106,9 +111,46 @@ def board_meetings():
     if data:
         df = pd.DataFrame(data)
         # list = df.to_dict('records')
-        # print(list)
+        print(list)
         df.to_csv(f'{directory}/board_meetings.csv', index=False)
     else:
         print("Failed to retrieve data.")
-    
-# board_meetings()
+
+def market_status_1():
+    api_url = "https://www.nseindia.com/api/marketStatus"
+    data = fetch_nse_data(api_url)
+    data = data.get('marketState')
+    data = data[0]['marketStatus']
+    print(data)
+
+def fetch_nifty_data_index(url, index_name):
+    # api_url = "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050"
+    api_url = url
+    data = fetch_nse_data(api_url)
+    data = data.get('data')
+    data = pd.DataFrame(data)
+    data = data.drop(0)
+    # data = data[data['priority'] != 1]
+    data = data[['symbol','lastPrice', 'pChange']]
+    nifty50_df = data.sort_values(by='pChange', ascending=False)
+    print(nifty50_df)
+    if not os.path.exists(directory):
+          os.makedirs(directory)
+    if nifty50_df.empty:
+        nifty50_df = pd.DataFrame(columns=['symbol', 'lastPrice', 'pChange'])
+        nifty50_df.to_csv(f'{directory}/{index_name}.csv', index=False)
+    else:
+        nifty50_df.to_csv(f'{directory}/{index_name}.csv', index=False)
+        print(nifty50_df.to_dict('records')) 
+
+
+
+# fetch_nifty_data_index("https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%2050", fileName="nifty50")   
+# fetch_nifty_data_index("https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20BANK", index_name="NIFTY BANK")   
+
+# count = 1
+# while True:
+#     fetch_nifty_50()
+#     print(f"=========={count}===========")
+#     count += 1
+#     time.sleep(0.5)
