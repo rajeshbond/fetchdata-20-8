@@ -22,7 +22,7 @@ def fetch_nifty_data_index(url, index_name):
     # data = data[data['priority'] != 1]
     data = data[['symbol','lastPrice', 'pChange']]
     nifty50_df = data.sort_values(by='pChange', ascending=False)
-    # print(nifty50_df)
+    print(nifty50_df)
     if not os.path.exists(directory):
           os.makedirs(directory)
     if nifty50_df.empty:

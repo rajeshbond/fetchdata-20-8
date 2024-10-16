@@ -1,0 +1,2 @@
+2024-10-16 09:32:20,153 - ERROR - Error in fetch_nifty_data_index: [Errno 13] Permission denied: 'heatmap/NIFTY BANK.csv'
+2024-10-16 09:32:43,495 - ERROR - Error in fetch_nifty_data_index: [Errno 13] Permission denied: 'heatmap/NIFTY 50.csv'
