@@ -1,10 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-
+from functools import lru_cache
 
 # Define the main function with caching
-
+@lru_cache(maxsize=10)
 def dataFiiDiiActivity():
     # URL of the website
     url = "https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php"
@@ -41,7 +41,8 @@ def dataFiiDiiActivity():
                     })
 
         # Clean and process the data
-        data_cleaning(data)
+        # data_cleaning(data)
+        # print(cleaned_data)
         return data
     else:
         print("Failed to fetch the page.")
@@ -87,8 +88,8 @@ def data_cleaning(data):
 def fetch_fii_dii_data_and_format():
     data = dataFiiDiiActivity()
     formatted_data = data_cleaning(data)
-    # print("---------------------------------------------------------")
-    # print(formatted_data)
+    print("---------------------------------------------------------")
+    print(formatted_data)
     return formatted_data
 
 # Call the function (uncomment to test)

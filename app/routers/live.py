@@ -122,6 +122,7 @@ def liveheat(index: schemas.indexinput):
 def fetch_fii():
     try:
         fiiData = fetch_fii_dii_data_and_format()
+        # print(fiiData)
         return fiiData
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))  
