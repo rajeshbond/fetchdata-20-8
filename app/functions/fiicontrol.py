@@ -41,8 +41,7 @@ def dataFiiDiiActivity():
                     })
 
         # Clean and process the data
-        # data_cleaning(data)
-        # print(cleaned_data)
+        data_cleaning(data)
         return data
     else:
         print("Failed to fetch the page.")
@@ -88,8 +87,8 @@ def data_cleaning(data):
 def fetch_fii_dii_data_and_format():
     data = dataFiiDiiActivity()
     formatted_data = data_cleaning(data)
-    print("---------------------------------------------------------")
-    print(formatted_data)
+    # print("---------------------------------------------------------")
+    # print(formatted_data)
     return formatted_data
 
 # Call the function (uncomment to test)
